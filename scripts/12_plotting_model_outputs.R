@@ -13,6 +13,32 @@ fishing_effort_plot <-
   theme_light()
 
 
+date_plot <- 
+  effect_plot(enc_mod_bin,
+              pred = julian,
+              interval = T,
+              int.type = "confidence",
+              int.width = 0.95,
+              colors = "#242424") +
+  theme_light() +
+  scale_x_continuous(breaks = c(1, 60, 121, 182, 244, 305),
+                     labels = c("January", "March", "May",
+                                "July", "September", "November")) +
+  scale_colour_viridis_d(option = "C", end = 0.8) +
+  theme_light() +
+  theme(legend.position = "bottom") +
+  labs(colour = "", x = "Month", y = "P(Encounter)", title = "D") +
+  geom_errorbar(aes(y = 0, xmin = 91,
+                    xmax = 120, colour = "1. Pre-breeding exodus"),
+                linewidth = 1.5, width = 0.002) +
+  geom_errorbar(aes(y = 0, xmin = 130,
+                    xmax = 230, colour = "2. Breeding season"),
+                linewidth = 1.5, width = 0.002) +
+  geom_errorbar(aes(y = 0, xmin = 244,
+                    xmax = 305, colour = "3. Moult period"),
+                linewidth = 1.5, width = 0.002)
+
+
 sex_plot <-
   cat_plot(enc_mod_bin,
            pred = sex,
@@ -26,102 +52,150 @@ sex_plot <-
   theme(legend.position = "none",
         axis.text.x = element_text(size = 10))
 
+newdata_pred <- data.frame(year_ad = c(60:210)/10,
+                           colony = rep("Eynhallow", length = 151),
+                           julian = rep(1, length = 151),
+                           night = rep(1, length = 151),
+                           id = rep("GBT_FP05030", length = 151),
+                           logger_class = rep("bt_low", length = 151),
+                           fishing_effort = rep(8, length = 151),
+                           sex = rep("unknown", length = 151))
+
+newdata_pred[, c("fit", "se")] <- predict.gam(enc_mod_bin,
+                                              newdata = newdata_pred,
+                                              type = "response",
+                                              exclude = c("id"),
+                                              se.fit = T)
+
 eynhallow_plot <- 
-  interact_plot(enc_mod_bin,
-                pred = year_ad,
-                modx = colony,
-                centered = "all",
-                at = list(colony = "Eynhallow"),
-                plot.points = F, interval = T,
-                main.title = "A",
-                int.type = "confidence",
-                int.width = 0.95,
-                x.label = "",
-                y.label = "P(Encounter)") +
+  newdata_pred %>%
+  mutate(fit_min = fit - se,
+         fit_max = fit + se) %>%
+  ggplot() +
+  geom_line(aes(x = year_ad, y = fit)) +
+  geom_ribbon(aes(x = year_ad,
+                  ymin = fit_min,
+                  ymax = fit_max,
+                  fill = "Eynhallow"),
+              alpha = 0.4) +
   scale_fill_viridis_d(option = "C", begin = 0.2) +
   scale_color_viridis_d(option = "C", begin = 0.2) +
   theme_light() +
-  labs(subtitle = "Scotland (Eynhallow, n = 150)") +
+  labs(subtitle = "Scotland (Eynhallow, n = 150)", title = "A", y = "P(Encounter)", x = "") +
   theme(legend.position = "none",
         axis.text.x = element_blank()) +
-  geom_vline(aes(xintercept = c(6)), colour = "black") +
-  geom_vline(aes(xintercept = c(20.85)), colour = "darkblue") +
-  scale_y_continuous(limits = c(0, 0.05)) +
+  scale_y_continuous(limits = c(0, 0.075)) +
   scale_x_continuous(breaks = c(6, 10, 14, 18),
                      limits = c(6, 21),
                      labels = c("2006", "2010", "2014", "2018"))
 
-saltee_polygon <- data.frame(x = c(6, 6, 9, 9),
-                              y = c(0, 0.05, 0.05, 0))
+newdata_pred <- data.frame(enc_bool = rep(0, length = 111),
+                           year_ad = c(100:210)/10,
+                           colony = rep("Little Saltee", length = 111),
+                           julian = rep(1, length = 111),
+                           night = rep(1, length = 111),
+                           id = rep("GBT_FP05030", length = 111),
+                           logger_class = rep("bt_low", length = 111),
+                           fishing_effort = rep(8, length = 111),
+                           sex = rep("unknown", length = 111))
 
-saltee_plot <- 
-  interact_plot(enc_mod_bin,
-                pred = year_ad,
-                modx = colony,
-                centered = "all",
-                at = list(colony = "Little Saltee"),
-                plot.points = F, interval = T,
-                main.title = "",
-                int.type = "confidence",
-                int.width = 0.95,
-                x.label = "",
-                y.label = "P(Encounter)") +
+newdata_pred[, c("fit", "se")] <- predict.gam(enc_mod_bin,
+            newdata = newdata_pred,
+            type = "response",
+            exclude = c("id"),
+            se = T)
+
+saltee_plot <-
+  newdata_pred %>%
+  mutate(fit_min = fit - se,
+         fit_max = fit + se) %>%
+  ggplot() +
+  geom_line(aes(x = year_ad, y = fit)) +
+    geom_ribbon(aes(x = year_ad,
+                    ymin = fit_min,
+                    ymax = fit_max,
+                    fill = "Little Saltee"),
+                alpha = 0.4) +
   scale_fill_viridis_d(option = "C", begin = 0, end = 0.8) +
   scale_color_viridis_d(option = "C", begin = 0, end = 0.8) +
   theme_light() +
-  labs(subtitle = "Ireland (Little Saltee, n = 38)") +
+  labs(subtitle = "Ireland (Little Saltee, n = 38)", y = "P(Encounter)", x = "") +
   theme(legend.position = "none",
         axis.text.x = element_blank()) +
-  geom_vline(aes(xintercept = c(9)), colour = "black") +
-  geom_vline(aes(xintercept = c(20.85)), colour = "darkblue") +
-  scale_y_continuous(limits = c(0, 0.05)) +
+  scale_y_continuous(limits = c(0, 0.075)) +
   scale_x_continuous(breaks = c(6, 10, 14, 18),
                      limits = c(6, 21),
                      labels = c("2006", "2010", "2014", "2018"))
 
+
+newdata_pred <- data.frame(year_ad = c(140:210)/10,
+                           colony = rep("Skjalfandi", length = 71),
+                           julian = rep(0, length = 71),
+                           night = rep(1, length = 71),
+                           id = rep("GBT_FP05030", length = 71),
+                           logger_class = rep("bt_low", length = 71),
+                           fishing_effort = rep(8, length = 71),
+                           sex = rep("unknown", length = 71))
+
+newdata_pred[, c("fit", "se")] <- predict.gam(enc_mod_bin,
+                                              newdata = newdata_pred,
+                                              type = "response",
+                                              exclude = c("id"),
+                                              se = T)
+
 skjalfandi_plot <- 
-  interact_plot(enc_mod_bin,
-                pred = year_ad,
-                modx = colony,
-                at = list(colony = "Skjalfandi"),
-                plot.points = F, interval = T,
-                main.title = "",
-                int.type = "confidence",
-                int.width = 0.95,
-                x.label = "",
-                y.label = "P(Encounter)") +
+  newdata_pred %>%
+  mutate(fit_min = fit - se,
+         fit_max = fit + se) %>%
+  ggplot() +
+  geom_line(aes(x = year_ad, y = fit)) +
+  geom_ribbon(aes(x = year_ad,
+                  ymin = fit_min,
+                  ymax = fit_max,
+                  fill = "Skjalfandi"),
+              alpha = 0.4) +
   scale_fill_viridis_d(option = "C", begin = 0.4) +
   scale_color_viridis_d(option = "C", begin = 0.4) +
   theme_light() +
-  labs(subtitle = "Iceland (Skjalfandi, n = 54)") +
+  labs(subtitle = "Iceland (Skjalfandi, n = 54)", y = "P(Encounter)", x = "") +
   theme(legend.position = "none",
         axis.text.x = element_blank()) +
-  geom_vline(aes(xintercept = c(14)), colour = "black") +
-  geom_vline(aes(xintercept = c(20)), colour = "darkblue") +
-  scale_y_continuous(limits = c(0, 0.05)) +
+  scale_y_continuous(limits = c(0, 0.075)) +
   scale_x_continuous(breaks = c(6, 10, 14, 18),
                      limits = c(6, 21),
                      labels = c("2006", "2010", "2014", "2018"))
 
+newdata_pred <- data.frame(year_ad = c(140:190)/10,
+                           colony = rep("Jan Mayen", length = 51),
+                           julian = rep(0, length = 51),
+                           night = rep(1, length = 51),
+                           id = rep("GBT_FP05030", length = 51),
+                           logger_class = rep("bt_low", length = 51),
+                           fishing_effort = rep(8, length = 51),
+                           sex = rep("unknown", length = 51))
+
+newdata_pred[, c("fit", "se")] <- predict.gam(enc_mod_bin,
+                                              newdata = newdata_pred,
+                                              type = "response",
+                                              exclude = c("id"),
+                                              se = T)
 janmayen_plot <- 
-  interact_plot(enc_mod_bin,
-                pred = year_ad,
-                modx = colony,
-                at = list(colony = "Jan Mayen"),
-                plot.points = F, interval = T,
-                main.title = "",
-                int.type = "confidence",
-                int.width = 0.95,
-                x.label = "Year",
-                y.label = "P(Encounter)") +
+  newdata_pred %>%
+  mutate(fit_min = fit - se,
+         fit_max = fit + se) %>%
+  ggplot() +
+  geom_line(aes(x = year_ad, y = fit)) +
+  geom_ribbon(aes(x = year_ad,
+                  ymin = fit_min,
+                  ymax = fit_max,
+                  fill = "Jan Mayen"),
+              alpha = 0.4) +
   scale_fill_viridis_d(option = "C", begin = 0.6) +
   scale_color_viridis_d(option = "C", begin = 0.6) +
   theme_light() +
-  labs(subtitle = "Jan Mayen (n = 54)") +
+  labs(subtitle = "Jan Mayen (n = 54)", y = "P(Encounter)", x = "Year") +
   theme(legend.position = "none") +
-  scale_y_continuous(limits = c(0, 0.05)) +
-  geom_vline(aes(xintercept = c(14)), colour = "black") +
-  geom_vline(aes(xintercept = c(18)), colour = "darkblue") +
+  scale_y_continuous(limits = c(0, 0.075)) +
   scale_x_continuous(breaks = c(6, 10, 14, 18),
                      limits = c(6, 21),
                      labels = c("2006", "2010", "2014", "2018"))
@@ -131,40 +205,6 @@ colony_plot <- plot_grid(eynhallow_plot, saltee_plot, skjalfandi_plot, janmayen_
 
 colony_plot
 
-# covariate_plot <- plot_grid(colony_plot,
-#                             plot_grid(fishing_effort_plot, sex_plot,
-#                                       nrow = 2),
-#                             nrow = 1)
-
-# covariate_plot
-# 
-# ggsave(covariate_plot, filename = "plots/covariate_plot.png",
-#        dpi = 600, height = 7, width = 7)
-
-viz_ob <- getViz(enc_mod_bin)
-
-date_plot <- plot(sm(viz_ob, 1), seWithMean = T) +
-  l_fitLine(linetype = 1, linewidth = 1.2)  +
-  l_ciPoly(fill = "#162c4d", alpha = 0.3) +
-  scale_x_continuous(breaks = c(1, 60, 121, 182, 244, 305),
-                     labels = c("January", "March", "May",
-                                "July", "September", "November")) +
-    scale_colour_viridis_d(option = "C", end = 0.8) +
-  theme_light() +
-    theme(legend.position = "bottom") +
-    labs(colour = "", x = "Month", y = "logit(encounter probability)", title = "D") +
-    geom_errorbar(aes(y = -0.85, xmin = 91,
-                      xmax = 120, colour = "1. Pre-breeding exodus"),
-                  linewidth = 1.5, width = 0.1) +
-    geom_errorbar(aes(y = -0.85, xmin = 130,
-                      xmax = 230, colour = "2. Breeding season"),
-                  linewidth = 1.5, width = 0.1) +
-    geom_errorbar(aes(y = -0.85, xmin = 244,
-                      xmax = 305, colour = "3. Moult period"),
-                  linewidth = 1.5, width = 0.1)
-
-ggsave(filename = "plots/day_plot.png",
-       height = 4, width = 7, dpi = 500)
 
 covariate_plot <- plot_grid(plot_grid(colony_plot,
                             plot_grid(fishing_effort_plot, sex_plot,
@@ -175,7 +215,7 @@ covariate_plot <- plot_grid(plot_grid(colony_plot,
 
 covariate_plot
 
-ggsave(covariate_plot, filename = "plots/covariate_plot_2b.png",
+ggsave(covariate_plot, filename = "plots/covariate_plot_2c.png",
        dpi = 600, height = 10, width = 7)
 
 night_plot <- 
@@ -220,15 +260,21 @@ colony_year_plot <-
   scale_x_continuous(breaks = c(6, 10, 14, 18),
                      labels = c("2006", "2010", "2014", "2018")) +
   scale_y_continuous(limits = c(0, 22)) +
-  theme_light() +
+  theme_nice() +
   scale_linetype_discrete(guide = F) +
-  labs(fill = "", colour = "") +
+  labs(fill = "", colour = "", title = "A") +
   theme(legend.position = "right")
 
 colony_year_plot
 
 ggsave(colony_year_plot, file = "plots/colony_year_plot.png",
        dpi = 500, height = 5, width = 6)
+
+combo_plot_enc_year_ars <- 
+  plot_grid(colony_year_plot, enc_ars_plot, rel_heights = c(1, 0.65), nrow = 2)
+
+ggsave(combo_plot_enc_year_ars, file = "plots/combo_plot_enc_year_ars.png",
+       dpi = 500, height = 8, width = 7)
 
 
 sex_plot <-
@@ -249,7 +295,8 @@ sex_plot
 area_plot <- 
 effect_plot(meta_enc_mod_rpt$mod,
             pred = areas90,
-            plot.points = F, interval = T,
+            plot.points = F,
+            interval = T,
             int.width = 0.95,
             partial.residuals = F, jitter = 0.2,
             colors = "#130142") +

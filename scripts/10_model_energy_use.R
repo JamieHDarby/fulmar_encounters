@@ -91,7 +91,7 @@ meta_ars_mod <- lmer(data = mod_data,
                       year_ad +
                       sex +
                       logger +
-                      sqrt_enc +
+                      # sqrt_enc +
                       (1 | id),
                     # family = "gaussian",
                     na.action = na.fail)
@@ -144,3 +144,85 @@ ggsave(ars_enc_plot, filename = "plots/ars_enc_plot.png",
 # Test the residuals of the binomial model, much better
 testResiduals(simulateResiduals(meta_ars_mod, n = 100))
 
+
+
+
+
+
+
+
+# Create a dataframe to run models explaining home range and time spent foraging
+mod_data <- id.year.meta.df %>%
+  # Get a factor of id and colony
+  mutate(id = as.factor(id), colony = as.factor(colony),
+         logger_class = as.factor(logger_class), sex = as.factor(sex),
+         # Scale days to between 0 and 1
+         days_scaled = (days / max(days)),
+         Colony = colony,
+         Year = year_ad + 2000,
+         # Get a square root of vessel encounters
+         Encounters = sqrt(encounters)) %>%
+  # Filter out NAs from the activity data
+  filter(!is.na(prop_ars))
+  
+
+dredge(glm(data = mod_data,
+           formula = prop_ars ~
+             Year*Encounters +
+             sex +
+             areas90 +
+             logger,
+           na.action = na.fail))
+
+meta_ars_day_mod <- lmer(data = mod_data,
+                         formula = prop_ars ~
+                           Year*Encounters +
+                           # areas90 +
+                           sex +
+                           logger + (1|id:Colony),
+                         na.action = na.fail)
+
+dredge(meta_ars_day_mod, beta = "none", rank = "AIC")
+
+summary(meta_ars_day_mod)
+
+anova(meta_ars_day_mod)
+
+r.squaredGLMM(meta_ars_day_mod)
+
+summary(mod_data$Encounters)
+
+vif(meta_ars_day_mod)
+
+# Test the residuals of the binomial model, much better
+testResiduals(simulateResiduals(meta_ars_day_mod, n = 100))
+
+effect_plot(meta_ars_day_mod, pred = Encounters, partial.residuals = T, interval = T)
+effect_plot(meta_ars_day_mod, pred = Year, partial.residuals = T, interval = T)
+
+
+
+enc_ars_plot <- interactions::interact_plot(meta_ars_day_mod, pred = Year, modx = Encounters,
+                       partial.residuals = T,
+                       facet.modx = T,
+                       modx.labels = c("Low encounter rate",
+                                       "Medium encounter rate",
+                                       "High enounter rate"),
+                       colors = c("#386664", "#383966", "#783b3c"),
+                       
+                       point.alpha = 0.6, point.size = 0.5, interval = T) +
+  theme(panel.border = element_rect(fill = 0)) +
+  labs(x = "Year", y = "Proportion of mixed\nbehaviour per year", title = "B")
+
+enc_ars_plot
+
+
+meta_ars_day_mod <- lmer(data = mod_data,
+                         formula = prop_ars_day ~
+                           Year*Encounters +
+                           # areas90 +
+                           sex +
+                           logger + (1|id:Colony),
+                         na.action = na.fail)
+
+summary(meta_ars_day_mod)

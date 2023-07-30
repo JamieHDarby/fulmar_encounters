@@ -79,6 +79,28 @@ id.year.bvr.df <- split(bvr.meta.df, bvr.meta.df$year_id) %>%
     y
   }) %>% bind_rows()
 
+id.year.bvr.day.df <- split(bvr.day.meta.df, bvr.day.meta.df$year_id) %>%
+  
+  lapply(., function(x){
+    
+    x <- x[which(!x$month %in% c(5, 6, 7, 8)), ]
+    
+    vars <- c("id", "year_id", "year_ad", "colony")
+    
+    y <- x[1, vars]
+    
+    y$days <- nrow(x)
+    
+    y$prop_rest_day <- mean(x$prop_rest)
+    y$prop_ars_day <- mean(x$prop_ars)
+    y$prop_flight_day <- mean(x$prop_flight)
+    y$prop_wet_day <- mean(x$prop_wet)
+    
+    if(y$days < 150){y <- NULL}
+    
+    y
+  }) %>% bind_rows()
+
 
 for(i in 1:nrow(id.year.meta.df)){
   
@@ -100,6 +122,16 @@ for(i in 1:nrow(id.year.meta.df)){
       which(id.year.bvr.df$year_id == id.year.meta.df[i, "year_id"]), vars]
   
   }else{id.year.meta.df[i, vars] <- NA}
+  
+  vars <- c("prop_rest_day", "prop_ars_day", "prop_flight_day", "prop_wet_day")
+  
+  if(id.year.meta.df$year_id[i] %in% id.year.bvr.day.df$year_id){
+    
+    id.year.meta.df[i, vars] <-
+      id.year.bvr.day.df[
+        which(id.year.bvr.day.df$year_id == id.year.meta.df[i, "year_id"]), vars]
+    
+  }else{id.year.meta.df[i, vars] <- NA}
 }
 
 id.year.meta.df %>%
@@ -110,8 +142,8 @@ id.year.meta.df %>%
   labs(x = "Period", y = "% total night time spent attending vessels",
        fill = "Year")
 
-ggplot(id.year.bvr.df %>% mutate(year = as.factor(year_ad + 2000))) +
-  geom_boxplot(aes(y = prop_wet, x = year, fill = colony),
+ggplot(id.year.bvr.day.df %>% mutate(year = as.factor(year_ad + 2000))) +
+  geom_boxplot(aes(y = prop_ars_day, x = year, fill = colony),
                alpha = 0.6, varwidth = T)
 
 save(id.year.meta.df, file = "data/cleaned/id_year_meta.RData")
